@@ -10,7 +10,7 @@ setup(
     description="CLI utility to query MatterMost API",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/haam3r/mmquery",
+    url="https://github.com/otmarlendl/mmquery",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

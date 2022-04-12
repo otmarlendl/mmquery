@@ -12,6 +12,7 @@ import logging
 import math
 import smtplib
 import sys
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -95,8 +96,9 @@ def cli(ctx, host, token, port, config):
 @click.option('--channel', required=True, help='Name of channel')
 @click.option('--team', required=True, help='Name of channel')
 @click.option('--filedump', is_flag=True, help='Also download posted files to current working directory')
+@click.option('--lastdays', type=int, default=0, help='Only fetch messages from the last INTEGER days')
 @pass_conf
-def posts(ctx, channel, team, filedump):
+def posts(ctx, channel, team, filedump, lastdays):
     '''
     Get posts from channel by channel name
     '''
@@ -111,8 +113,8 @@ def posts(ctx, channel, team, filedump):
         else:
             click.echo('Error getting channel, got status code %d.' % exc.response.status_code, file=sys.stderr)
         return
-    # Paginate over results pages if needed
-    if chan['total_msg_count'] > 200:
+    # Paginate over results pages if needed (no lastdays given)
+    if lastdays == 0 and chan['total_msg_count'] > 200:
         pages = math.ceil(chan['total_msg_count']/200)
         for page in range(pages):
             posts = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': 200, 'page': page})
@@ -122,12 +124,16 @@ def posts(ctx, channel, team, filedump):
             except KeyError:
                 full['order'] = posts['order']
                 full['posts'] = posts['posts']
+    elif lastdays > 0:
+        since = 1000 * (int(time.time()) - 24*3600*lastdays)
+        click.echo('Fetching posts since %d' % since, file=sys.stderr)
+        full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'since': since})
     else:
         full = ctx.connect.posts.get_posts_for_channel(chan['id'], params={'per_page': chan['total_msg_count']})
 
     # Print messages in correct order and resolve user id-s to nickname or username
     for message in reversed(full['order']):
-        time = abstract.convert_time(full['posts'][message]['create_at'])
+        ptime = abstract.convert_time(full['posts'][message]['create_at'])
         if full['posts'][message]['user_id'] in ctx.config:
             nick = ctx.config[full['posts'][message]['user_id']]
         else:
@@ -141,9 +147,9 @@ def posts(ctx, channel, team, filedump):
                 return
             # Let's store id and nickname pairs locally to reduce API calls
             ctx.config[full['posts'][message]['user_id']] = nick
-        click.echo('{nick} at {time} said: {msg}'
+        click.echo('{nick} at {ptime} said: {msg}'
                     .format(nick=nick,
-                            time=time,
+                            ptime=ptime,
                             msg=full['posts'][message]['message']))
         if 'file_ids' in full['posts'][message]:
             file_ids.extend(full['posts'][message]['file_ids'])

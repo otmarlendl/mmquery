@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4 (2022-04-12) Otmar Lendl
+- added lastdays option to posts command
+
 ## 0.3 (2019-07-25) Otmar Lendl
 - fixed user reporting
 - include MFA setting in reporting
